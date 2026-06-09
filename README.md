@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>趣味英语拖拽配对15关</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:Microsoft Yahei,sans-serif;}
+        body{background:#b8e4ff;padding:20px;min-height:100vh;}
+        .wrap{max-width:1100px;margin:0 auto;background:#fff;border-radius:16px;padding:30px;box-shadow:0 0 15px #007acc44;}
+        .top-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;font-size:20px;gap:20px;flex-wrap:wrap;}
+        .level-text{font-weight:bold;color:#005fb8}
+        .score{color:#e64340}
+        .time{color:#229922}
+        .star{color:#ffbc00;font-size:24px}
+        .container{display:grid;grid-template-columns:1fr 1fr;gap:45px;margin:30px 0;min-height:520px;}
+        .col-left,.col-right{display:flex;flex-direction:column;gap:18px;}
+        .item{
+            padding:15px 20px;
+            background:#e6f3ff;
+            border-radius:12px;
+            font-size:21px;
+            cursor:grab;
+            border:2px solid #94c8ff;
+            transition:0.2s;
+        }
+        .item:active{cursor:grabbing;transform:scale(1.02)}
+        .drop-box{
+            padding:15px 20px;
+            background:#f5faff;
+            border:2px dashed #63a8ff;
+            border-radius:12px;
+            min-height:60px;
+            font-size:21px;
+        }
+        .right{background:#d7f2dd;border-color:#27a354;color:#135928}
+        .wrong{background:#fde2e2;border-color:#dd4545;color:#721c24;animation:shake 0.5s}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+        @keyframes fly{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+        .add-score{position:absolute;color:#28a745;font-weight:bold;font-size:26px;animation:fly 1s forwards;pointer-events:none;}
+        .btn-group{display:flex;gap:22px;justify-content:center;margin-top:32px;flex-wrap:wrap}
+        button{
+            padding:12px 32px;
+            font-size:18px;
+            border:none;
+            border-radius:9px;
+            background:#0078e7;
+            color:#fff;
+            cursor:pointer;
+        }
+        button:disabled{background:#cccccc;cursor:not-allowed}
+        .win-modal{
+            position:fixed;top:0;left:0;width:100%;height:100%;background:#00000070;
+            display:none;align-items:center;justify-content:center;z-index:999;
+        }
+        .modal-box{
+            background:#fff;padding:50px 70px;border-radius:18px;text-align:center;
+        }
+        .modal-box h2{font-size:34px;color:#0099cc;margin-bottom:20px}
+    </style>
+</head>
+<body>
+
+<div class="wrap">
+    <div class="top-info">
+        <div class="level-text">当前关卡：<span id="curLevel">1</span>/15</div>
+        <div class="score">正确配对：<span id="rightNum">0</span>/5</div>
+        <div class="time">剩余时间：<span id="timer">90</span>s</div>
+        <div class="star">本关星级：<span id="starShow">☆☆☆</span></div>
+    </div>
+
+    <div class="container" id="mainBox">
+        <div class="col-left" id="leftBox"></div>
+        <div class="col-right" id="rightBox"></div>
+    </div>
+
+    <div class="btn-group">
+        <button id="prevBtn">上一关</button>
+        <button id="nextBtn">下一关</button>
+        <button id="resetLevel">重置本关</button>
+    </div>
+</div>
+
+<div class="win-modal" id="winModal">
+    <div class="modal-box">
+        <h2>🎉恭喜你全部通关啦！🎉</h2>
+        <p id="allStar" style="margin:15px 0; font-size:18px;"></p>
+        <button onclick="restartAll()">重新闯关</button>
+    </div>
+</div>
+
+<audio id="okAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3"></audio>
+<audio id="errAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-error-2571.mp3"></audio>
+
+<script>
+const levelData = [
+    {en:["eat vegetables","get enough sleep","drink water","say no to smoking","take exercise"],cn:["吃蔬菜","充足的睡眠","喝水","不抽烟","做运动"]},
+    {en:["make a phone call","send e-mail","chat via Wechat","chat face to face","write a letter"],cn:["打电话","发邮件","微信聊天","面对面聊天","写信"]},
+    {en:["drugstore","clothes store","supermarket","bread shop","medicine"],cn:["药店","服装店","超市","面包店","药品"]},
+    {en:["in the classroom","in the hospital","at the party","in the library","at the restaurant"],cn:["在教室","在医院","在派对上","在图书馆","在餐馆"]},
+    {en:["Olympic Games","Synchronized swimming","Weight lifting","Play badminton","Play table tennis"],cn:["奥运会","花样游泳","举重","打羽毛球","打乒乓"]},
+    {en:["have a maths lesson","watch a movie","order a meal","check in","see a doctor"],cn:["上数学课","看电影","点餐","办理入住","看医生"]},
+    {en:["garbage sorting","ride bicycles","plant trees","collect rubbish","clear plates"],cn:["垃圾分类","骑自行车","种树","收集垃圾","光盘行动"]},
+    {en:["firefighter","policeman","cashier","manager","engineer"],cn:["消防员","警察","收银员","经理","工程师"]},
+    {en:["sit down","stand up","get on","get off","fall over"],cn:["坐下","起立","上车","下车","摔倒"]},
+    {en:["take a shower","have dinner","get dressed","get up","go to bed"],cn:["洗澡","吃晚饭","穿衣服","起床","睡觉"]},
+    {en:["brush your teeth","have a shave","wash your hair","make up","comb hair"],cn:["刷牙","刮胡子","洗头发","化妆","梳头发"]},
+    {en:["feel hungry","feel tired","feel scared","feel thirsty","feel cold"],cn:["感到饿的","感到疲惫","感到害怕","感到口渴","感到寒冷"]},
+    {en:["take care of the old","give the seat to the old","eat up the food","take the zebra crossing","throw rubbish into dustbin"],cn:["照顾老人","给老人让座","光盘吃光食物","走斑马线","垃圾扔进垃圾桶"]},
+    {en:["go hiking","go swimming","go running","go skating","go camping"],cn:["远足","游泳","跑步","滑冰","露营"]},
+    {en:["eat fruit","eat noodles","eat beef","eat eggs","eat corn"],cn:["吃水果","吃面条","吃牛肉","吃鸡蛋","吃玉米"]}
+];
+
+let nowLevel = 1;
+let rightCount = 0;
+let dragItem = null;
+let wrongCount = 0;
+let allStarArr = [];
+let timeLeft = 90;
+let timer = null;
+
+const leftDom = document.getElementById('leftBox');
+const rightDom = document.getElementById('rightBox');
+const curLevelDom = document.getElementById('curLevel');
+const rightNumDom = document.getElementById('rightNum');
+const nextBtn = document.getElementById('nextBtn');
+const prevBtn = document.getElementById('prevBtn');
+const winModal = document.getElementById('winModal');
+const timerDom = document.getElementById('timer');
+const starDom = document.getElementById('starShow');
+const okAudio = document.getElementById('okAudio');
+const errAudio = document.getElementById('errAudio');
+const mainBox = document.getElementById('mainBox');
+const resetBtn = document.getElementById('resetLevel');
+
+// 打乱顺序
+function shuffle(arr) {
+    let newArr = [...arr];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        let ran = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[ran]] = [newArr[ran], newArr[i]];
+    }
+    return newArr;
+}
+
+// 加分动画
+function showAddScore(x, y) {
+    let span = document.createElement('span');
+    span.className = 'add-score';
+    span.innerText = "+10";
+    span.style.left = x + 'px';
+    span.style.top = y + 'px';
+    mainBox.appendChild(span);
+    setTimeout(() => span.remove(), 1000);
+}
+
+// 星级显示
+function setStar() {
+    if (wrongCount === 0) starDom.innerText = "★★★";
+    else if (wrongCount <= 1) starDom.innerText = "★★☆";
+    else starDom.innerText = "★☆☆";
+}
+
+// 更新按钮状态
+function updateBtnStatus() {
+    prevBtn.disabled = nowLevel === 1;
+    nextBtn.disabled = rightCount !== 5;
+}
+
+// 渲染关卡
+function renderLevel() {
+    clearInterval(timer);
+    rightCount = 0;
+    wrongCount = 0;
+    timeLeft = 90;
+
+    rightNumDom.innerText = rightCount;
+    timerDom.innerText = timeLeft;
+    starDom.innerText = "☆☆☆";
+
+    const data = levelData[nowLevel - 1];
+    const enList = shuffle(data.en);
+    const cnList = shuffle(data.cn);
+
+    leftDom.innerHTML = '';
+    rightDom.innerHTML = '';
+
+    // 左侧英文
+    enList.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerText = item;
+        div.draggable = true;
+        div.dataset.val = item;
+        div.addEventListener('dragstart', () => {
+            dragItem = div;
+        });
+        leftDom.appendChild(div);
+    });
+
+    // 右侧中文
+    cnList.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'drop-box';
+        div.innerText = item;
+        div.dataset.val = item;
+
+        div.addEventListener('dragover', e => e.preventDefault());
+        div.addEventListener('drop', (e) => {
+            if (!dragItem) return;
+            const eng = dragItem.dataset.val;
+            const chn = div.dataset.val;
+            const idx = levelData[nowLevel - 1].en.indexOf(eng);
+
+            if (levelData[nowLevel - 1].cn[idx] === chn) {
+                okAudio.currentTime = 0;
+                okAudio.play();
+
+                div.classList.add('right');
+                dragItem.style.background = '#d7f2dd';
+                dragItem.style.borderColor = '#27a354';
+                dragItem.draggable = false;
+
+                rightCount++;
+                rightNumDom.innerText = rightCount;
+                showAddScore(e.pageX, e.pageY);
+                setStar();
+                updateBtnStatus();
+
+                if (rightCount === 5) {
+                    allStarArr.push(starDom.innerText);
+                    clearInterval(timer);
+                    if (nowLevel === 15) {
+                        setTimeout(() => {
+                            document.getElementById('allStar').innerText = "全部关卡星级：" + allStarArr.join(' ');
+                            winModal.style.display = 'flex';
+                        }, 500);
+                    }
+                }
+            } else {
+                errAudio.currentTime = 0;
+                errAudio.play();
+                wrongCount++;
+                div.classList.add('wrong');
+                setTimeout(() => div.classList.remove('wrong'), 500);
+                setStar();
+            }
+            dragItem = null;
+        });
+        rightDom.appendChild(div);
+    });
+
+    curLevelDom.innerText = nowLevel;
+    updateBtnStatus();
+
+    // 倒计时
+    timer = setInterval(() => {
+        timeLeft--;
+        timerDom.innerText = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            alert("时间到！可以点击重置本关重新挑战～");
+        }
+    }, 1000);
+}
+
+// 按钮绑定
+resetBtn.onclick = renderLevel;
+
+nextBtn.onclick = () => {
+    if (nowLevel < 15) {
+        nowLevel++;
+        renderLevel();
+    }
+};
+
+prevBtn.onclick = () => {
+    if (nowLevel > 1) {
+        nowLevel--;
+        renderLevel();
+    }
+};
+
+function restartAll() {
+    nowLevel = 1;
+    allStarArr = [];
+    winModal.style.display = 'none';
+    renderLevel();
+}
+
+renderLevel();
+</script>
+</body>
+</html>
