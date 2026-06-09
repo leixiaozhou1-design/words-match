@@ -34,9 +34,9 @@
             font-size:21px;
         }
         .right{background:#d7f2dd;border-color:#27a354;color:#135928}
-        .wrong{background:#fde2e2;border-color:#dd4545;color:#781c1c;animation:shake 0.5s}
+        .wrong{background:#fde2e2;border-color:#dd4545;color:#721c24;animation:shake 0.5s}
         @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
-        @keyframes fly{0{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+        @keyframes fly{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
         .add-score{position:absolute;color:#28a745;font-weight:bold;font-size:26px;animation:fly 1s forwards;pointer-events:none;}
         .btn-group{display:flex;gap:22px;justify-content:center;margin-top:32px;flex-wrap:wrap}
         button{
@@ -48,18 +48,19 @@
             color:#fff;
             cursor:pointer;
         }
-        button:disabled{background:#aaaaaa;cursor:not-allowed}
+        button:disabled{background:#cccccc;cursor:not-allowed}
         .win-modal{
-            position:fixed;top:0;left:0;width:100%;height:100%;background:#00000066;
-            display:none;align-items:center;justify-content:center;
+            position:fixed;top:0;left:0;width:100%;height:100%;background:#00000070;
+            display:none;align-items:center;justify-content:center;z-index:999;
         }
         .modal-box{
-            background:#fff;padding:55px 85px;border-radius:18px;text-align:center;
+            background:#fff;padding:50px 70px;border-radius:18px;text-align:center;
         }
-        .modal-box h2{font-size:34px;color:#0099cc;margin-bottom:15px}
+        .modal-box h2{font-size:34px;color:#0099cc;margin-bottom:20px}
     </style>
 </head>
 <body>
+
 <div class="wrap">
     <div class="top-info">
         <div class="level-text">当前关卡：<span id="curLevel">1</span>/15</div>
@@ -67,26 +68,29 @@
         <div class="time">剩余时间：<span id="timer">90</span>s</div>
         <div class="star">本关星级：<span id="starShow">☆☆☆</span></div>
     </div>
+
     <div class="container" id="mainBox">
         <div class="col-left" id="leftBox"></div>
         <div class="col-right" id="rightBox"></div>
     </div>
+
     <div class="btn-group">
         <button id="prevBtn">上一关</button>
         <button id="nextBtn">下一关</button>
         <button id="resetLevel">重置本关</button>
     </div>
 </div>
+
 <div class="win-modal" id="winModal">
     <div class="modal-box">
         <h2>🎉恭喜你全部通关啦！🎉</h2>
-        <p id="allStar"></p>
+        <p id="allStar" style="margin:15px 0; font-size:18px;"></p>
         <button onclick="restartAll()">重新闯关</button>
     </div>
 </div>
-<!--音效-->
-<audio id="okAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3">
-<audio id="errAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-error-2571.mp3">
+
+<audio id="okAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3"></audio>
+<audio id="errAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-error-2571.mp3"></audio>
 
 <script>
 const levelData = [
@@ -105,15 +109,16 @@ const levelData = [
     {en:["take care of the old","give the seat to the old","eat up the food","take the zebra crossing","throw rubbish into dustbin"],cn:["照顾老人","给老人让座","光盘吃光食物","走斑马线","垃圾扔进垃圾桶"]},
     {en:["go hiking","go swimming","go running","go skating","go camping"],cn:["远足","游泳","跑步","滑冰","露营"]},
     {en:["eat fruit","eat noodles","eat beef","eat eggs","eat corn"],cn:["吃水果","吃面条","吃牛肉","吃鸡蛋","吃玉米"]}
-]
+];
 
 let nowLevel = 1;
 let rightCount = 0;
 let dragItem = null;
-let wrongCount=0;
-let allStarArr=[];
-let timeLeft=90;
-let timer=null;
+let wrongCount = 0;
+let allStarArr = [];
+let timeLeft = 90;
+let timer = null;
+
 const leftDom = document.getElementById('leftBox');
 const rightDom = document.getElementById('rightBox');
 const curLevelDom = document.getElementById('curLevel');
@@ -121,128 +126,169 @@ const rightNumDom = document.getElementById('rightNum');
 const nextBtn = document.getElementById('nextBtn');
 const prevBtn = document.getElementById('prevBtn');
 const winModal = document.getElementById('winModal');
-const timerDom=document.getElementById('timer');
-const starDom=document.getElementById('starShow');
-const okAudio=document.getElementById('okAudio');
-const errAudio=document.getElementById('errAudio');
-const mainBox=document.getElementById('mainBox');
+const timerDom = document.getElementById('timer');
+const starDom = document.getElementById('starShow');
+const okAudio = document.getElementById('okAudio');
+const errAudio = document.getElementById('errAudio');
+const mainBox = document.getElementById('mainBox');
+const resetBtn = document.getElementById('resetLevel');
 
-function shuffle(arr){
+// 打乱顺序
+function shuffle(arr) {
     let newArr = [...arr];
-    for(let i=newArr.length-1;i>0;i--){
-        let ran = Math.floor(Math.random()*(i+1));
-        [newArr[i],newArr[ran]]=[newArr[ran],newArr[i]]
+    for (let i = newArr.length - 1; i > 0; i--) {
+        let ran = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[ran]] = [newArr[ran], newArr[i]];
     }
-    return newArr
-}
-//加分飘字
-function showAddScore(x,y){
-    let span=document.createElement('span');
-    span.className='add-score';
-    span.innerText="+10";
-    span.style.left=x+'px';
-    span.style.top=y+'px';
-    mainBox.appendChild(span);
-    setTimeout(()=>span.remove(),1000)
-}
-//星级判定
-function setStar(){
-    if(wrongCount===0) starDom.innerText="★★★";
-    else if(wrongCount<=1) starDom.innerText="★★☆";
-    else starDom.innerText="★☆☆";
+    return newArr;
 }
 
-function renderLevel(){
+// 加分动画
+function showAddScore(x, y) {
+    let span = document.createElement('span');
+    span.className = 'add-score';
+    span.innerText = "+10";
+    span.style.left = x + 'px';
+    span.style.top = y + 'px';
+    mainBox.appendChild(span);
+    setTimeout(() => span.remove(), 1000);
+}
+
+// 星级显示
+function setStar() {
+    if (wrongCount === 0) starDom.innerText = "★★★";
+    else if (wrongCount <= 1) starDom.innerText = "★★☆";
+    else starDom.innerText = "★☆☆";
+}
+
+// 更新按钮状态
+function updateBtnStatus() {
+    prevBtn.disabled = nowLevel === 1;
+    nextBtn.disabled = rightCount !== 5;
+}
+
+// 渲染关卡
+function renderLevel() {
     clearInterval(timer);
-    rightCount=0;wrongCount=0;timeLeft=90;
+    rightCount = 0;
+    wrongCount = 0;
+    timeLeft = 90;
+
     rightNumDom.innerText = rightCount;
-    timerDom.innerText=timeLeft;
-    starDom.innerText="☆☆☆";
-    const data = levelData[nowLevel-1];
+    timerDom.innerText = timeLeft;
+    starDom.innerText = "☆☆☆";
+
+    const data = levelData[nowLevel - 1];
     const enList = shuffle(data.en);
     const cnList = shuffle(data.cn);
-    leftDom.innerHTML='';rightDom.innerHTML='';
 
-    enList.forEach(item=>{
-        const div = document.createElement('div');
-        div.className='item';
-        div.innerText=item;
-        div.draggable=true;
-        div.dataset.val=item;
-        div.addEventListener('dragstart',()=>dragItem=div)
-        leftDom.appendChild(div)
-    })
+    leftDom.innerHTML = '';
+    rightDom.innerHTML = '';
 
-    cnList.forEach(item=>{
+    // 左侧英文
+    enList.forEach(item => {
         const div = document.createElement('div');
-        div.className='drop-box';
-        div.innerText=item;
-        div.dataset.val=item;
-        div.addEventListener('dragover',e=>e.preventDefault())
-        div.addEventListener('drop',(e)=>{
-            if(!dragItem) return;
+        div.className = 'item';
+        div.innerText = item;
+        div.draggable = true;
+        div.dataset.val = item;
+        div.addEventListener('dragstart', () => {
+            dragItem = div;
+        });
+        leftDom.appendChild(div);
+    });
+
+    // 右侧中文
+    cnList.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'drop-box';
+        div.innerText = item;
+        div.dataset.val = item;
+
+        div.addEventListener('dragover', e => e.preventDefault());
+        div.addEventListener('drop', (e) => {
+            if (!dragItem) return;
             const eng = dragItem.dataset.val;
             const chn = div.dataset.val;
-            const idx = levelData[nowLevel-1].en.indexOf(eng);
-            if(levelData[nowLevel-1].cn[idx]===chn){
-                okAudio.currentTime=0;okAudio.play();
+            const idx = levelData[nowLevel - 1].en.indexOf(eng);
+
+            if (levelData[nowLevel - 1].cn[idx] === chn) {
+                okAudio.currentTime = 0;
+                okAudio.play();
+
                 div.classList.add('right');
-                dragItem.style.background='#d7f2dd';
-                dragItem.style.borderColor='#27a354';
-                dragItem.draggable=false;
+                dragItem.style.background = '#d7f2dd';
+                dragItem.style.borderColor = '#27a354';
+                dragItem.draggable = false;
+
                 rightCount++;
-                rightNumDom.innerText=rightCount;
-                showAddScore(e.pageX,e.pageY);
+                rightNumDom.innerText = rightCount;
+                showAddScore(e.pageX, e.pageY);
                 setStar();
-                if(rightCount===5){
+                updateBtnStatus();
+
+                if (rightCount === 5) {
                     allStarArr.push(starDom.innerText);
                     clearInterval(timer);
-                    if(nowLevel===15){
-                        setTimeout(()=>{
-                            document.getElementById('allStar').innerText="全部关卡星级："+allStarArr.join(' ');
-                            winModal.style.display='flex'
-                        },350)
+                    if (nowLevel === 15) {
+                        setTimeout(() => {
+                            document.getElementById('allStar').innerText = "全部关卡星级：" + allStarArr.join(' ');
+                            winModal.style.display = 'flex';
+                        }, 500);
                     }
                 }
-            }else{
-                errAudio.currentTime=0;errAudio.play();
+            } else {
+                errAudio.currentTime = 0;
+                errAudio.play();
                 wrongCount++;
                 div.classList.add('wrong');
-                setTimeout(()=>div.classList.remove('wrong'),550)
+                setTimeout(() => div.classList.remove('wrong'), 500);
                 setStar();
             }
-            dragItem=null;
-        })
-        rightDom.appendChild(div)
-    })
-    curLevelDom.innerText=nowLevel;
-    prevBtn.disabled = nowLevel===1;
-    nextBtn.disabled = true;
-    //倒计时
-    timer=setInterval(()=>{
+            dragItem = null;
+        });
+        rightDom.appendChild(div);
+    });
+
+    curLevelDom.innerText = nowLevel;
+    updateBtnStatus();
+
+    // 倒计时
+    timer = setInterval(() => {
         timeLeft--;
-        timerDom.innerText=timeLeft;
-        if(timeLeft<=0){
+        timerDom.innerText = timeLeft;
+        if (timeLeft <= 0) {
             clearInterval(timer);
-            alert("本关超时！点击重置关卡重新挑战");
+            alert("时间到！可以点击重置本关重新挑战～");
         }
-    },1000)
+    }, 1000);
 }
-document.getElementById('resetLevel').onclick=renderLevel;
-nextBtn.onclick=()=>{
-    if(nowLevel<15){nowLevel++;renderLevel()}
+
+// 按钮绑定
+resetBtn.onclick = renderLevel;
+
+nextBtn.onclick = () => {
+    if (nowLevel < 15) {
+        nowLevel++;
+        renderLevel();
+    }
+};
+
+prevBtn.onclick = () => {
+    if (nowLevel > 1) {
+        nowLevel--;
+        renderLevel();
+    }
+};
+
+function restartAll() {
+    nowLevel = 1;
+    allStarArr = [];
+    winModal.style.display = 'none';
+    renderLevel();
 }
-prevBtn.onclick=()=>{
-    if(nowLevel>1){nowLevel--;renderLevel()}
-}
-function restartAll(){
-    nowLevel=1;allStarArr=[];winModal.style.display='none';renderLevel()
-}
-//全对解锁下一关监听
-document.addEventListener('DOMSubtreeModified',()=>{
-    if(rightCount===5) nextBtn.disabled=false;
-})
-renderLevel()
+
+renderLevel();
 </script>
 </body>
 </html>
